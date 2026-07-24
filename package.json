@@ -1,0 +1,18 @@
+{
+  "name": "ai-task-manager",
+  "version": "1.0.0",
+  "description": "AI-powered Task Manager built with Node.js",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "better-sqlite3": "^9.4.3",
+    "cors": "^2.8.5",
+    "dotenv": "^17.4.2",
+    "express": "^4.18.2",
+    "node-cron": "^4.6.0",
+    "node-fetch": "^3.3.2",
+    "nodemailer": "^9.0.3"
+  }
+}

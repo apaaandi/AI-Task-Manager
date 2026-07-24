@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AI Task Manager</title>
+    <link rel="stylesheet" href="/css/style.css" />
+</head>
+
+<body>
+
+    <!-- CONFLICT MODAL -->
+    <div class="modal-overlay" id="conflict-modal">
+        <div class="modal">
+            <div class="modal-icon">⚠️</div>
+            <h3>Schedule Conflict</h3>
+            <p>This task overlaps with:</p>
+            <div class="modal-conflict" id="modal-conflict-info"></div>
+            <p>Suggested time:</p>
+            <div class="modal-suggest" id="modal-suggest-info"></div>
+            <div class="modal-actions">
+                <button class="btn-use-suggested" onclick="useSuggestedTime()">✅ Use Suggested Time</button>
+                <button class="btn-save-anyway" onclick="saveAnyway()">⚡ Save Anyway</button>
+                <button class="btn-cancel-modal" onclick="closeModal('conflict-modal')">✕ Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- WEEK PLANNER MODAL -->
+    <div class="modal-overlay" id="week-modal">
+        <div class="modal">
+            <div id="week-form-view">
+                <div class="modal-icon">🗓️</div>
+                <h3>Plan My Week</h3>
+                <p class="modal-sub">Answer 3 questions and AI will schedule your entire week.</p>
+                <div class="week-nav"
+                    style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+                    <button type="button" class="cal-nav" onclick="shiftWeek(-1)">‹ Prev</button>
+                    <span id="week-range-label" style="font-weight:600"></span>
+                    <button type="button" class="cal-nav" onclick="shiftWeek(1)">Next ›</button>
+                </div>
+                <div class="week-form">
+                    <div>
+                        <label>How many hours can you work per day?</label>
+                        <select id="week-hours">
+                            <option value="4">4 hours</option>
+                            <option value="6">6 hours</option>
+                            <option value="8" selected>8 hours</option>
+                            <option value="10">10 hours</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label>What is your main goal this week?</label>
+                        <input type="text" id="week-goal" placeholder="e.g. Finish the project proposal" />
+                    </div>
+                    <div>
+                        <label>Which days are you unavailable?</label>
+                        <div class="days-grid" id="days-grid">
+                            <button class="day-toggle" data-day="Sunday" onclick="toggleDay(this)">Sun</button>
+                            <button class="day-toggle" data-day="Monday" onclick="toggleDay(this)">Mon</button>
+                            <button class="day-toggle" data-day="Tuesday" onclick="toggleDay(this)">Tue</button>
+                            <button class="day-toggle" data-day="Wednesday" onclick="toggleDay(this)">Wed</button>
+                            <button class="day-toggle" data-day="Thursday" onclick="toggleDay(this)">Thu</button>
+                            <button class="day-toggle" data-day="Friday" onclick="toggleDay(this)">Fri</button>
+                            <button class="day-toggle" data-day="Saturday" onclick="toggleDay(this)">Sat</button>
+                        </div>
+                    </div>
+                    <button class="btn-build-week" onclick="buildWeek()">✨ Build My Week</button>
+                    <button class="btn-secondary" style="margin-top:0"
+                        onclick="closeModal('week-modal')">Cancel</button>
+                </div>
+            </div>
+            <div class="week-result" id="week-result">
+                <h3 style="margin-bottom:16px">✅ Week Planned!</h3>
+                <div class="week-overview" id="week-overview"></div>
+                <div class="week-warnings" id="week-warnings" style="display:none">
+                    <h4>⚠️ Heads Up</h4>
+                    <ul id="week-warnings-list"></ul>
+                </div>
+                <div class="week-tip" id="week-tip"></div>
+                <div id="week-plan-list" style="margin-bottom:16px"></div>
+                <button class="btn-primary" onclick="closeModal('week-modal');loadTasks()">🎉 View My Schedule</button>
+            </div>
+        </div>
+    </div>
+
+    <header>
+        <div class="header-left">
+            <span>✅</span>
+            <div>
+                <h1>AI Task Manager</h1>
+                <div class="header-sub">Powered by Groq · OpenStreetMap · OSRM</div>
+            </div>
+        </div>
+        <div class="header-actions">
+            <button class="btn-plan-week" onclick="openWeekModal()">🗓️ Plan My Week</button>
+            <button class="btn-chat-toggle" onclick="toggleChat()">💬 AI Assistant</button>
+            <button class="btn-send-digest" onclick="sendTestDigest()">📧 Send Test Digest</button>
+        </div>
+    </header>
+
+    <div class="app-body">
+
+        <!-- Main content -->
+        <div class="main-content">
+
+            <!-- Calendar -->
+            <div class="calendar-panel">
+                <div class="calendar-header">
+                    <button class="cal-nav" onclick="changeMonth(-1)">← Prev</button>
+                    <h3 id="cal-title"></h3>
+                    <button class="cal-nav" onclick="changeMonth(1)">Next →</button>
+                </div>
+                <div class="calendar-grid" id="cal-grid"></div>
+            </div>
+
+            <!-- Schedule Panel -->
+            <div class="schedule-panel" id="schedule-panel">
+                <div class="schedule-header">
+                    <h3 id="schedule-title">📅 Schedule</h3>
+                    <div style="display:flex;gap:8px">
+                        <button class="btn-ai-schedule" onclick="generateAISchedule()">✨ AI Schedule</button>
+                        <button class="btn-close-schedule" onclick="closeSchedule()">✕ Close</button>
+                    </div>
+                </div>
+                <div id="schedule-content"></div>
+            </div>
+
+            <div class="container">
+                <div class="tasks-section">
+                    <div class="sort-bar">
+                        <span>Sort:</span>
+                        <button class="sort-btn active" id="sort-default" onclick="setSort('default')">📋
+                            Default</button>
+                        <button class="sort-btn" id="sort-asc" onclick="setSort('date_asc')">📅 Date ↑</button>
+                        <button class="sort-btn" id="sort-desc" onclick="setSort('date_desc')">📅 Date ↓</button>
+                        <div id="filter-badge-container"></div>
+                    </div>
+                    <h2 id="task-count">Loading...</h2>
+                    <div id="task-list"></div>
+                </div>
+                <div class="form-panel">
+                    <h2 id="form-title">Add New Task</h2>
+                    <div class="form-group">
+                        <label>Title *</label>
+                        <input type="text" id="inp-title" placeholder="e.g. Dentist Appointment" />
+                    </div>
+                    <div class="form-group">
+                        <label>Description</label>
+                        <textarea id="inp-desc" placeholder="Optional details..."></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>Priority</label>
+                        <select id="inp-priority">
+                            <option value="LOW">Low</option>
+                            <option value="MEDIUM" selected>Medium</option>
+                            <option value="HIGH">High</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Status</label>
+                        <select id="inp-status">
+                            <option value="TODO" selected>To Do</option>
+                            <option value="IN_PROGRESS">In Progress</option>
+                            <option value="DONE">Done</option>
+                        </select>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Due Date</label>
+                            <input type="date" id="inp-due" />
+                        </div>
+                        <div class="form-group">
+                            <label>Time</label>
+                            <input type="time" id="inp-time" />
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Duration</label>
+                        <select id="inp-duration">
+                            <option value="">Not set</option>
+                            <option value="15">15 min</option>
+                            <option value="30">30 min</option>
+                            <option value="45">45 min</option>
+                            <option value="60">1 hour</option>
+                            <option value="90">1.5 hours</option>
+                            <option value="120">2 hours</option>
+                            <option value="180">3 hours</option>
+                            <option value="240">4 hours</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Repeat (sessions)</label>
+                        <input type="number" id="inp-sessions" min="1" max="20" value="1" placeholder="1" />
+                    </div>
+                    <button class="btn-location-toggle" onclick="toggleLocation()">
+                        📍 <span id="location-toggle-label">Add Location & Travel Time</span>
+                    </button>
+                    <div class="location-fields" id="location-fields">
+                        <div class="form-group">
+                            <label>From</label>
+                            <input type="text" id="inp-from" placeholder="Your starting location" />
+                        </div>
+                        <div class="form-group" style="margin-bottom:0">
+                            <label>To</label>
+                            <input type="text" id="inp-to" placeholder="Destination" />
+                        </div>
+                        <button class="btn-calc-travel" onclick="calculateTravel()">🚗 Calculate Travel Time</button>
+                        <div class="travel-result" id="travel-result"></div>
+                    </div>
+                    <input type="hidden" id="edit-id" />
+                    <input type="hidden" id="inp-travel-mins" />
+                    <input type="hidden" id="inp-distance-km" />
+                    <input type="hidden" id="inp-from-coords" />
+                    <input type="hidden" id="inp-to-coords" />
+                    <button class="btn-primary" onclick="saveTask()">💾 Save Task</button>
+                    <button class="btn-secondary" onclick="resetForm()">✖ Cancel</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Chat Panel -->
+        <div class="chat-panel" id="chat-panel">
+            <div class="chat-header">
+                <div>
+                    <h3>💬 AI Assistant</h3>
+                    <span>Ask anything about your tasks</span>
+                </div>
+                <button class="btn-clear-chat" onclick="clearChat()">Clear</button>
+            </div>
+
+            <div class="chat-messages" id="chat-messages">
+                <div class="chat-message ai">
+                    <div class="chat-label">AI Assistant</div>
+                    <div class="chat-bubble">Hi! I have full access to all your tasks. Ask me anything. I can analyze your schedule, suggest what to prioritize, reschedule tasks, or help you plan your week. What do you need?</div>
+                </div>
+            </div>
+
+            <div class="chat-suggestions" id="chat-suggestions">
+                <div class="chat-suggestion" onclick="sendSuggestion(this)">What's my busiest day?</div>
+                <div class="chat-suggestion" onclick="sendSuggestion(this)">What should I focus on today?</div>
+                <div class="chat-suggestion" onclick="sendSuggestion(this)">Am I overloaded this week?</div>
+                <div class="chat-suggestion" onclick="sendSuggestion(this)">What tasks are overdue?</div>
+                <div class="chat-suggestion" onclick="sendSuggestion(this)">What can I drop or delay?</div>
+            </div>
+
+            <div class="chat-input-area">
+                <input type="text" id="chat-input" placeholder="Ask about your tasks..."
+                    onkeydown="if(event.key==='Enter') sendChat()" />
+                <button class="btn-send" onclick="sendChat()">→</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="chart-tooltip" id="chart-tooltip"></div>
+    <div class="toast" id="toast"></div>
+
+    <script src="/js/script.js"></script>
+</body>
+
+</html>
