@@ -464,6 +464,80 @@ router.post('/plan-week', async (req, res) => {
     }
 });
 
+// ── AI DAY SCHEDULE (ADVICE ONLY, NO CHANGES) ─────────────────────
+router.post('/schedule', async (req, res) => {
+    try {
+        const { date } = req.body;
+        if (!date) return res.status(400).json({ error: 'date is required' });
+
+        const apiKey = process.env.GROQ_API_KEY;
+        if (!apiKey) return res.status(503).json({ error: 'GROQ_API_KEY not set' });
+
+        const dayTasks = taskDAO.getAllTasks().filter(t => t.due_date === date);
+        if (dayTasks.length === 0) {
+            return res.json({ overview: 'No tasks scheduled for this day.', schedule: [] });
+        }
+
+        const taskList = dayTasks.map(t => `
+      [ID:${t.id}] "${t.title}"
+      - Priority: ${t.priority} | Status: ${t.status}
+      - Time: ${t.due_time || 'not set'} | Duration: ${t.duration_mins || 30} mins
+      - Travel: ${t.travel_time_mins ? t.travel_time_mins + ' mins to ' + t.to_location : 'none'}
+    `).join('\n');
+
+        const prompt = `
+      You are a daily scheduling assistant. Give advice on how to best approach the day below.
+      Do NOT invent new times — the tasks already have their times/dates set. Just give guidance.
+
+      DATE: ${date}
+      TASKS:
+      ${taskList}
+
+      Respond ONLY with valid JSON, no extra text:
+      {
+        "overview": "2-3 sentence summary of how to approach this day",
+        "schedule": [
+          { "taskId": 1, "reason": "one short sentence of advice for this specific task" }
+        ]
+      }
+    `;
+
+        const { default: fetch } = await import('node-fetch');
+        const response = await fetchWithTimeout('https://api.groq.com/openai/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${apiKey}`
+            },
+            body: JSON.stringify({
+                model: 'llama-3.3-70b-versatile',
+                max_tokens: 700,
+                messages: [
+                    { role: 'system', content: 'You are a scheduling assistant. Respond with valid JSON only. No markdown.' },
+                    { role: 'user', content: prompt }
+                ]
+            })
+        }, 15000);
+
+        const data = await response.json();
+        if (data.error) return res.status(500).json({ error: data.error.message });
+
+        const raw = data.choices[0].message.content.trim();
+        let parsed;
+        try {
+            parsed = JSON.parse(raw.replace(/```json|```/g, '').trim());
+        } catch (e) {
+            return res.status(502).json({ error: 'AI returned malformed JSON, please try again' });
+        }
+
+        res.json(parsed);
+
+    } catch (err) {
+        console.error('Schedule advice error:', err.message);
+        res.status(500).json({ error: err.message });
+    }
+});
+
 // ── EMAIL DIGEST ──────────────────────────────────────────────────
 router.post('/send-digest', async (req, res) => {
     try {
