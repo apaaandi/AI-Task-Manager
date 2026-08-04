@@ -4,7 +4,6 @@ A full-stack task management app with AI-powered scheduling assistance. Users ma
 
 ## Features
 
-- **JWT authentication** for secure user accounts
 - **Task management** with due times, durations, and location-aware scheduling
 - **AI chat assistant** powered by Groq/LLaMA for natural-language task planning
 - **Travel time calculation** using OSRM and Nominatim to account for real-world commute time between tasks
@@ -17,7 +16,6 @@ A full-stack task management app with AI-powered scheduling assistance. Users ma
 - **Database:** SQLite
 - **AI:** Groq API (LLaMA models)
 - **Frontend:** Vanilla JavaScript, HTML, CSS
-- **Auth:** JWT
 - **Scheduling/Notifications:** node-cron, Nodemailer
 - **Location/Routing:** OSRM, Nominatim
 
